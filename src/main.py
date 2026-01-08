@@ -1,25 +1,43 @@
+import json
+import os
+
 from trust.trust_manager import TrustManager
 from decision.decision_engine import DecisionEngine
 from hypothesis.hypothesis_evaluator import HypothesisEvaluator
+from ingest.csv_ingestor import CSVIngestor
 
-def main(mode: str):
-    """
-    mode: 'historical' or 'realtime'
-    """
 
-    ingest = Ingestor(mode=mode)
-    sanitizer = Sanitizer()
+def main():
+    ingestor = CSVIngestor(
+        file_path="data/sample.csv",
+        stream_name="trade"
+    )
+
     trust_manager = TrustManager()
     hypothesis = HypothesisEvaluator()
     decision_engine = DecisionEngine()
 
-    for event in ingest.stream():
-        clean_event = sanitizer.process(event)
-        trust_state = trust_manager.update(clean_event)
-        hypothesis_state = hypothesis.update(clean_event)
-        decision = decision_engine.decide(
-            trust_state=trust_state,
-            hypothesis_state=hypothesis_state
-        )
+    os.makedirs("output", exist_ok=True)
 
-        log_state(event, trust_state, hypothesis_state, decision)
+    with open("output/state_transitions.jsonl", "w") as f:
+        for event in ingestor.stream():
+            trust_state = trust_manager.update(event)
+            hypothesis_state = hypothesis.update(event)
+            decision = decision_engine.decide(
+                trust_state=trust_state,
+                hypothesis_state=hypothesis_state
+            )
+
+            log = {
+                "ts": event.event_time,
+                "data_trust": trust_state,
+                "hypothesis": hypothesis_state,
+                "decision": decision,
+                "stream": str(event.stream)
+            }
+
+            f.write(json.dumps(log) + "\n")
+
+
+if __name__ == "__main__":
+    main()
