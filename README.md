@@ -51,9 +51,14 @@ Incoming events are classified into three categories.
 
 The following signals trigger quarantine or trust degradation.
 
+At the current implementation stage (Day 4), the system explicitly handles
+out-of-order timestamps. Other signals are part of the intended design and
+are introduced incrementally in later stages.
+
 ### Fat Finger Events
 A price jump exceeding **3 percent within 2 seconds**.  
 Structural anomalies are confirmed only when such events occur consecutively.
+(This condition is defined at the design level and implemented incrementally.)
 
 ### Crossed Market
 Persistent bid greater than or equal to ask conditions.  
@@ -96,8 +101,9 @@ Hypothesis validity is classified as:
 - **WEAKENING**
 - **INVALID**
 
-Following a liquidation event, the system enforces a minimum **5 second no-decision window**.  
-During this period, the system continues to observe orderbook depth, spread behavior, and subsequent liquidation activity.
+Following a liquidation event, the system is designed to enforce a minimum **5 second no-decision window**.  
+This hypothesis logic is validated in later stages
+using orderbook and liquidation streams.
 
 ---
 
