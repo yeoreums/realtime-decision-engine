@@ -47,9 +47,14 @@ class BinanceFuturesWSIngestor:
 
     @staticmethod
     def _extract_event_time(data: dict) -> float:
+        """
+        Event-time extraction policy:
+        - Prefer exchange-provided event time (T or E)
+        - Fallback to processing-time if missing or invalid
+        """
         ts = data.get("T") or data.get("E")
         if ts is None:
-            return time.time()
+            return time.time()  # processing-time fallback
         try:
             ts_f = float(ts)
         except (TypeError, ValueError):
@@ -77,6 +82,9 @@ class BinanceFuturesWSIngestor:
                         receive_time=time.time(),
                         payload=data,
                     )
+
+                    # Minimal burst protection (yield control)
+                    time.sleep(0.0)  # cooperative yield, no hard throttling
 
             except (WebSocketTimeoutException, WebSocketConnectionClosedException):
                 pass

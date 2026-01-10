@@ -1,0 +1,1 @@
+{"mode": "historical", "run_seconds": 0.001, "events": 3, "decisions": 3, "transitions": 1, "errors": 0, "stream_counts": {"trade": 3}, "allowed_lateness_sec": 0.5, "data_dir": "/data", "output_dir": "/output/historical", "started_at_unix": 1768026269.7044563, "ended_at_unix": 1768026269.70587, "files_processed": 1}

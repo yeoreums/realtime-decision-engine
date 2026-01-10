@@ -1,0 +1,1 @@
+{"mode": "realtime", "symbol": "btcusdt", "run_seconds": 60, "events": 779, "decisions": 779, "transitions": 1, "allowed_lateness_sec": 0.5, "output_dir": "output/realtime", "started_at_unix": 1768022288.8277688, "ended_at_unix": 1768022348.8296654}

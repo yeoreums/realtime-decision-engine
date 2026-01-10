@@ -11,4 +11,5 @@ ENV PYTHONPATH=/app/src
 ENV DATA_DIR=/data
 ENV OUTPUT_DIR=/output
 
-CMD ["python", "src/main.py"]
+ENTRYPOINT ["python", "src/main.py"]
+

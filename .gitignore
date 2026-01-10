@@ -1,5 +1,7 @@
 __pycache__/
 *.pyc
+.venv/
+env/
 
 # Ignore all outputs by default
 output/*

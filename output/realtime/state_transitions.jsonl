@@ -1,0 +1,1 @@
+{"ts": 1768022292.577, "receive_ts": 1768022292.5843995, "trigger": "fat_finger_price", "previous_trust": "TRUSTED", "current_trust": "DEGRADED", "details": {"last_price": -520.0, "current_price": -520.0, "reason": "non_positive_last_price"}}
