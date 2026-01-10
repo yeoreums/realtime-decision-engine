@@ -1,147 +1,133 @@
 # Realtime Decision Engine for Unreliable Market Data
 
-This repository explores the design of a decision gating system for real-time market data under unreliable and imperfect conditions.
+This repository implements a decision gating system for unreliable market data.
 
-Rather than predicting prices or executing trades, the system focuses on determining **when a decision should be allowed, restricted, or halted**, based on data reliability and market stability.
+The goal is not prediction or alpha generation.
+The system answers a simpler operational question:
 
-The core question this project addresses is:
-
-Can a decision structure validated on imperfect historical data remain reliable in a real-time WebSocket environment?
-
----
-
-## 1. Design Philosophy
-
-This system is built around three principles.
-
-First, dirty data is inevitable in real markets.  
-Second, not making a decision is also a valid decision.  
-Third, data reliability and market validity must be evaluated independently.
-
-The goal is operational safety and explainability, not prediction accuracy.
+> When should the system allow, restrict, or halt decisions, and can that logic stay consistent across historical CSV and realtime WebSocket environments?
 
 ---
 
-## 2. System Overview
+## What this submission proves
 
-The system processes four concurrent data streams.
+This submission focuses on Phase 1 (Historical Validation) and proves:
 
-- Trades
-- Orderbook updates
-- Liquidation events
-- Market tickers
-
-Each stream may arrive with delays, duplication, missing events, or inconsistent timestamps.  
-The system does not assume a unified time axis across streams.
+* An end-to-end pipeline runs consistently
+  Ingest → Sanitize → Trust → Hypothesis → Decision → Logs
+* Dirty data signals can trigger a trust state transition
+* The decision permission changes accordingly and is explainable via logs
 
 ---
 
-## 3. Data Sanitization
+## Implemented vs Planned
 
-Incoming events are classified into three categories.
+### Implemented (this submission)
 
-- **ACCEPT**  
-  Valid data that can be used directly.
+Phase
 
-- **REPAIR**  
-  Recoverable anomalies that can be corrected or normalized.
+* Historical CSV execution (Docker + mounted `/data`)
 
-- **QUARANTINE**  
-  Unreliable data that must not influence decisions directly.
+Sanitization
 
-The following signals trigger quarantine or trust degradation.
+* Out-of-order timestamps with `allowed_lateness_sec`
 
-At the current implementation stage (Day 4), the system explicitly handles
-out-of-order timestamps. Other signals are part of the intended design and
-are introduced incrementally in later stages.
+  * REPAIR if lateness is within the threshold
+  * QUARANTINE if lateness exceeds the threshold
+* Fat-finger price jump rule
 
-### Fat Finger Events
-A price jump exceeding **3 percent within 2 seconds**.  
-Structural anomalies are confirmed only when such events occur consecutively.
-(This condition is defined at the design level and implemented incrementally.)
+  * QUARANTINE if price jump is at least 3 percent within 2 seconds
 
-### Crossed Market
-Persistent bid greater than or equal to ask conditions.  
-Single occurrences are tolerated, consecutive occurrences indicate structural issues.
+Trust
 
-### Stream Stall
-No incoming events for a sustained period.
+* TRUSTED → DEGRADED on QUARANTINE
+* Transition is logged to `state_transitions.jsonl`
 
-- 3 seconds without data leads to trust degradation.
-- 5 seconds without data leads to an untrusted state.
+Decision
 
----
+* Decision permission is derived from `(data_trust, hypothesis_state)`
+* Current mapping
 
-## 4. Data Trust State
+  * DEGRADED or WEAKENING → RESTRICTED
+  * UNTRUSTED or INVALID → HALTED
 
-The system maintains a data trust state that summarizes overall data reliability.
+Observability
 
-- **TRUSTED**  
-  No recent structural anomalies.
+* `decisions.jsonl` and `state_transitions.jsonl` are generated
+* Logs distinguish event-time (`ts`) and processing-time (`receive_ts`) where relevant
 
-- **DEGRADED**  
-  Early warning signals detected. Decisions should be treated cautiously.
+### Planned (not implemented in this submission)
 
-- **UNTRUSTED**  
-  Structural issues or prolonged data absence detected. Decisions must be halted.
-
-Trust state transitions are driven by the frequency and severity of quarantine signals and stream stalls.
+* Realtime WebSocket execution (Phase 2)
+* Multi-stream ingestion (Trades, Orderbook, Liquidations, Ticker)
+* Stream stall detection and crossed-market detection
+* Hypothesis evaluator logic using liquidation and orderbook streams
+* DEGRADED → UNTRUSTED escalation policy
+* `summary.json` output
 
 ---
 
-## 5. Market Hypothesis
+## Most dangerous uncertainty
 
-The system evaluates a single hypothesis.
+The most dangerous uncertainty is time inconsistency.
 
-After a large liquidation event, the orderbook requires time to stabilize before allowing reliable decisions.
+Even if different streams show the same timestamp, it may not represent the same market time.
+For this reason, the system distinguishes:
 
-Hypothesis validity is classified as:
+* event-time (`ts`)
+* processing-time (`receive_ts`)
 
-- **VALID**
-- **WEAKENING**
-- **INVALID**
-
-Following a liquidation event, the system is designed to enforce a minimum **5 second no-decision window**.  
-This hypothesis logic is validated in later stages
-using orderbook and liquidation streams.
+and uses sanitization rules to decide when an event is too late or unreliable to trust.
 
 ---
 
-## 6. Decision Permission Engine
+## Outputs
 
-Final decision permissions are derived from the combination of data trust and hypothesis validity.
+After running the historical mode, outputs are written under:
 
-| Data Trust | Hypothesis | Decision |
-|----------|-----------|----------|
-| TRUSTED | VALID | ALLOWED |
-| TRUSTED | WEAKENING | RESTRICTED |
-| TRUSTED | INVALID | HALTED |
-| DEGRADED | VALID | RESTRICTED |
-| DEGRADED | WEAKENING | RESTRICTED |
-| DEGRADED | INVALID | HALTED |
-| UNTRUSTED | ANY | HALTED |
+```
+output/historical/
+├── decisions.jsonl
+└── state_transitions.jsonl
+```
 
-This separation ensures that decisions are never made when either the data or the market context is unreliable.
+### Example logs
 
----
+decisions.jsonl
 
-## 7. Observability
+```json
+{"ts": 1699999999.0, "stream": "trade", "data_trust": "DEGRADED", "hypothesis": "VALID", "decision": "RESTRICTED", "sanitize": "QUARANTINE", "trigger": "out_of_order_timestamp"}
+```
 
-All state transitions and decisions are logged explicitly.
+state_transitions.jsonl
 
-Logs allow post-hoc analysis of:
-
-- Why a decision was halted
-- Which data anomalies influenced trust
-- How hypothesis validity evolved over time
-
-The system prioritizes explainability over silent automation.
+```json
+{"ts": 1699999999.0, "receive_ts": 1768019001.1418347, "trigger": "out_of_order_timestamp", "previous_trust": "TRUSTED", "current_trust": "DEGRADED", "details": {"lateness_sec": 3.0, "allowed_lateness_sec": 0.5}}
+```
 
 ---
 
-## 8. Scope and Limitations
+## How to run (Docker)
 
-This project does not attempt to optimize trading performance or generate alpha.  
-Its purpose is to explore robust decision control under real-world data uncertainty.
+Build
 
-The architecture is intentionally generic and applicable to any real-time event-driven system facing unreliable inputs.
+```bash
+docker build -t decision-engine .
+```
+
+Run (Historical CSV)
+
+```bash
+docker run --rm \
+  -e DATA_DIR=/data \
+  -e OUTPUT_DIR=/output \
+  -v /path/to/challenge_data/validation:/data \
+  -v "$(pwd)/output:/output" \
+  decision-engine
+```
+
+---
+
+## If I were to simplify first
+
+I would keep the hypothesis evaluator as a strict placeholder until the data trust policy is validated across more dirty-data patterns and multiple streams. This reduces coupling and keeps the decision gating behavior explainable.
