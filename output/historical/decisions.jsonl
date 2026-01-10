@@ -1,0 +1,3 @@
+{"ts": 1700000000.0, "stream": "trade", "data_trust": "TRUSTED", "hypothesis": "VALID", "decision": "ALLOWED", "sanitize": "ACCEPT", "trigger": null}
+{"ts": 1700000002.0, "stream": "trade", "data_trust": "TRUSTED", "hypothesis": "VALID", "decision": "ALLOWED", "sanitize": "ACCEPT", "trigger": null}
+{"ts": 1699999999.0, "stream": "trade", "data_trust": "DEGRADED", "hypothesis": "VALID", "decision": "RESTRICTED", "sanitize": "QUARANTINE", "trigger": "out_of_order_timestamp"}

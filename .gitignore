@@ -1,3 +1,11 @@
 __pycache__/
 *.pyc
-output/
+
+# Ignore all outputs by default
+output/*
+
+# But keep submission artifacts
+!output/historical/
+!output/historical/**
+!output/realtime/
+!output/realtime/**

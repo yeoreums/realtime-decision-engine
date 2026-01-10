@@ -1,0 +1,1 @@
+{"ts": 1699999999.0, "receive_ts": 1768019001.1418347, "trigger": "out_of_order_timestamp", "previous_trust": "TRUSTED", "current_trust": "DEGRADED", "details": {"event_time": 1699999999.0, "last_event_time": 1700000002.0, "lateness_sec": 3.0, "allowed_lateness_sec": 0.5}}
